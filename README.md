@@ -5,7 +5,7 @@ A fine-tuned text classifier that categorizes r/nba posts into 5 types: analysis
 
 ## Demo Video
 
-[Loom Demo](https://loom.com/share/your-link-here)
+[Loom Demo](https://github.com/SaimM2007/ai201-project3-takemeter)
 
 ---
 
