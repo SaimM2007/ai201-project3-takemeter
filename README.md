@@ -21,6 +21,28 @@ r/nba is one of the biggest sports communities on Reddit. Posts range from break
 | `news` | Factual report from a journalist or insider: trades, signings, injuries, front office moves |
 | `question` | Post asking the community for opinions, predictions, or information |
 
+### Examples Per Label
+
+**analysis**
+- "Since 1989, there are only 5 teams in NBA history that have had 3 All-NBA players on them that year."
+- "During this year's playoffs, Wembanyama recorded 77 defensive stops. No player has recorded more in a single playoff run since the 2010-11 season."
+
+**hot_take**
+- "Trae Young will never win a championship. His defense is just too bad."
+- "The Celtics blew it by not getting Giannis. They are done competing for the next 3 years."
+
+**hype**
+- "Steph Curry drops 52 on 9-15 from three in a regular season blowout"
+- "14 Years Ago Today - Chris Bosh Pours Champagne All Over His Face After Winning Championship"
+
+**news**
+- "[Charania] BREAKING: Dusty May has agreed to become the new head coach of the Dallas Mavericks."
+- "[Nehm & Amick] League sources say there is a great deal of interest around the league in Herro"
+
+**question**
+- "Who do you think will be the Ajay Mitchell in this year's upcoming draft?"
+- "What shot creating guards should the Heat go for if Powell doesn't resign?"
+
 ---
 
 ## Dataset
@@ -62,6 +84,37 @@ Each post was labeled by reading the title and applying the definitions from pla
 - **Fine-tuning:** Added a 5-class classification head, trained for 3 epochs on 140 examples with validation-based checkpointing
 - **Key hyperparameter decision:** Kept the default learning rate of 2e-5. With only 140 training examples a higher rate would risk unstable updates. Batch size of 16 fit the T4 GPU fine.
 - **Other hyperparameters:** weight decay 0.01, warmup steps 50, eval per epoch
+
+---
+
+## Baseline
+
+The zero-shot baseline used Groq's `llama-3.3-70b-versatile` model with no task-specific training. Each test post was sent to the model with this system prompt:
+
+```
+You are classifying posts from r/nba, the NBA subreddit on Reddit.
+Assign each post to exactly one of the following categories.
+
+analysis: A structured argument backed by stats, history, or tactical observation.
+Example: "Since 1989, only 5 teams have had 3 All-NBA players in the same season."
+
+hot_take: A bold confident opinion with little supporting evidence.
+Example: "Trae Young will never win a championship. His defense is just too bad."
+
+hype: An emotional reaction to a play, moment, or highlight.
+Example: "Steph drops 52 on 9-15 from three in a regular season blowout"
+
+news: A factual report from journalists or insiders about trades, signings, injuries.
+Example: "[Charania] BREAKING: Dusty May has agreed to become the new head coach of the Dallas Mavericks."
+
+question: Asking the community for opinions, predictions, or information.
+Example: "Who do you think will be the Ajay Mitchell in this year's upcoming draft?"
+
+Respond with ONLY the label name, lowercase, exactly as written above.
+Do not explain your reasoning.
+```
+
+Results were collected by running the classify function on all 30 test examples with temperature=0 and max_tokens=20. The notebook parsed the model's output and matched it against the label map. All 30 responses were parseable (0 failures).
 
 ---
 
