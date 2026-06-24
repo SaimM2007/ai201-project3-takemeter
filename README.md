@@ -1,13 +1,13 @@
-# TakeMeter — r/nba Discourse Classifier
-### AI201 · Project 3
+# TakeMeter - r/nba Discourse Classifier
+### AI201 - Project 3
 
-A fine-tuned text classifier that categorizes r/nba posts by discourse type: analysis, hot take, hype, news, or question.
+A fine-tuned text classifier that categorizes r/nba posts into 5 types: analysis, hot take, hype, news, or question.
 
 ---
 
 ## Community
 
-**r/nba** — one of Reddit's largest sports communities. Discourse ranges from breaking trade news to statistical deep-dives to pure hype posts after a big play. These distinctions matter to the community: members actively reward well-reasoned analysis and call out bad-faith hot takes. The variation in post type makes it a strong fit for a classification task — nearly every post falls cleanly into one of a few recognizable discourse modes.
+r/nba is one of the biggest sports communities on Reddit. Posts range from breaking trade news to stat breakdowns to pure reaction posts after a big play. People in the community actually care about the difference between a well-reasoned take and someone just yelling into the void, so these labels mean something to real users there. Almost every post fits cleanly into one of a few patterns which makes it a good fit for classification.
 
 ---
 
@@ -16,10 +16,10 @@ A fine-tuned text classifier that categorizes r/nba posts by discourse type: ana
 | Label | Definition |
 |-------|------------|
 | `analysis` | Structured argument backed by stats, historical comparison, or tactical observation |
-| `hot_take` | Bold confident opinion stated without substantial supporting evidence |
-| `hype` | Immediate emotional reaction to a play, moment, or event — highlights, throwbacks, celebrations |
-| `news` | Factual report from journalists or insiders: trades, signings, injuries, front office moves |
-| `question` | Post soliciting community opinions, predictions, or information |
+| `hot_take` | Bold confident opinion with little to no supporting evidence |
+| `hype` | Immediate emotional reaction to a play, moment, or event (highlights, throwbacks, celebrations) |
+| `news` | Factual report from a journalist or insider: trades, signings, injuries, front office moves |
+| `question` | Post asking the community for opinions, predictions, or information |
 
 ---
 
@@ -40,27 +40,27 @@ A fine-tuned text classifier that categorizes r/nba posts by discourse type: ana
 | news | 40 | 20.0% |
 | question | 36 | 18.0% |
 
-Distribution is balanced — all labels within 3.5% of each other, so no majority-class bias issue.
+Pretty balanced across all labels, all within 3.5% of each other so no majority class bias issues.
 
 ### Labeling Process
 
-Posts were labeled by reading the full title and applying the definitions in `planning.md`. The primary signal was: does the post present evidence (analysis), assert without evidence (hot_take), react to a moment (hype), report a fact (news), or ask something (question)?
+Each post was labeled by reading the title and applying the definitions from planning.md. The main question was: does this post reason with evidence (analysis), assert without evidence (hot_take), react to a moment (hype), report a fact (news), or ask something (question)?
 
 ### Hard Cases
 
-1. **"[ESPN] Giannis traded to Heat: Grades, reaction, Bucks' next steps — Miami B-, Bucks B+"** — Contains both reporting and editorial grades. Labeled `news` because the primary content is a sourced factual event; the grades are secondary commentary.
+1. **"[ESPN] Giannis traded to Heat: Grades, reaction, Bucks' next steps - Miami B-, Bucks B+"** - has both reporting and editorial grades in it. Labeled `news` because the core content is a sourced factual event, the grades are just secondary commentary.
 
-2. **"Has modern NBA parity changed how we should evaluate all time great players?"** — Frames a thoughtful premise but is ultimately asking the community. Labeled `question` because it solicits responses rather than presents a position.
+2. **"Has modern NBA parity changed how we should evaluate all time great players?"** - frames a thoughtful premise but is really just asking the community. Labeled `question` because it's soliciting responses not making an argument.
 
-3. **"Giannis Trade Overreactions — r/nba is acting like Giannis is some washed-up, hobbled old man"** — Pushes back on community reaction without citing specific evidence. Labeled `hot_take` because the post asserts a position rather than arguing it with data.
+3. **"Giannis Trade Overreactions - r/nba is acting like Giannis is some washed-up, hobbled old man"** - pushes back on community reaction but doesn't cite any real evidence. Labeled `hot_take` because it's asserting a position without data to back it up.
 
 ---
 
 ## Model
 
 - **Base model:** `distilbert-base-uncased` (66M parameters)
-- **Fine-tuning:** Added a 5-class classification head, trained for 3 epochs on 140 training examples with validation-based checkpointing
-- **Key hyperparameter decision:** Kept the default learning rate of 2e-5, which is the standard starting point for fine-tuning BERT-family models. Given the small dataset (140 train examples), a higher rate risked unstable updates. Batch size of 16 fit the T4 GPU comfortably.
+- **Fine-tuning:** Added a 5-class classification head, trained for 3 epochs on 140 examples with validation-based checkpointing
+- **Key hyperparameter decision:** Kept the default learning rate of 2e-5. With only 140 training examples a higher rate would risk unstable updates. Batch size of 16 fit the T4 GPU fine.
 - **Other hyperparameters:** weight decay 0.01, warmup steps 50, eval per epoch
 
 ---
@@ -75,9 +75,9 @@ Posts were labeled by reading the full title and applying the definitions in `pl
 | Fine-tuned DistilBERT | 0.467 |
 | Difference | -0.267 (regression) |
 
-The fine-tuned model performed worse than the zero-shot baseline. This is discussed in the reflection below.
+The fine-tuned model actually did worse than the zero-shot baseline. More on why in the reflection section.
 
-### Per-Class Metrics — Fine-Tuned Model
+### Per-Class Metrics - Fine-Tuned Model
 
 ```
               precision    recall  f1-score   support
@@ -93,7 +93,7 @@ The fine-tuned model performed worse than the zero-shot baseline. This is discus
 weighted avg       0.46      0.47      0.38        30
 ```
 
-### Per-Class Metrics — Baseline (Groq)
+### Per-Class Metrics - Baseline (Groq)
 
 ```
               precision    recall  f1-score   support
@@ -121,27 +121,27 @@ weighted avg       0.81      0.73      0.73        30
 | **true: news** | 0 | 0 | 4 | 2 | 0 |
 | **true: question** | 0 | 0 | 0 | 0 | 5 |
 
-The model almost exclusively predicts `hype` for everything except `question`. It correctly learned `question` (5/5) and partially learned `news` (2/6), but collapsed `analysis` and `hot_take` almost entirely into `hype`.
+The model basically just predicted `hype` for almost everything except `question`. It got `question` perfect (5/5) and partially learned `news` (2/6) but completely collapsed `analysis` and `hot_take` into `hype`.
 
 ### Error Analysis
 
-**Error #1**
+**Error 1**
 - **Text:** "After the KD Nets were eliminated in 2021, Jackie MacMullan claimed KD's goal was to win 3 championships with Brooklyn."
 - **True label:** `analysis`
 - **Predicted:** `hype` (confidence: 0.22)
-- **Analysis:** This post references a specific journalist and a specific claim — it reads like analysis because it's citing a source and drawing a historical parallel. The model predicted `hype`, likely because it picked up on the emotional/dramatic framing ("KD Nets eliminated") rather than the underlying argumentative structure. With only 30 training examples for analysis, the model never learned to distinguish sourced reasoning from excited reaction posts.
+- **Analysis:** This post cites a specific journalist and a specific claim, so it reads like analysis because it's drawing a historical parallel with a source. The model predicted `hype` probably because it picked up on the dramatic framing ("KD Nets eliminated") instead of the argumentative structure. With only 30 training examples for analysis the model never learned to tell the difference between sourced reasoning and excited reaction posts.
 
-**Error #2**
+**Error 2**
 - **Text:** "Wembanyama is already better than any big man the NBA has seen since prime Shaq"
 - **True label:** `hot_take`
 - **Predicted:** `hype` (confidence: 0.21)
-- **Analysis:** This is a textbook hot take — bold claim, no evidence, strong assertion. The model predicted `hype`, probably because the post celebrates a player in superlative terms, which superficially resembles a hype post. The boundary between `hot_take` and `hype` is subtle when the hot take is positive rather than controversial: both involve enthusiasm, but one asserts a claim and the other just reacts to a moment. The model never learned that distinction.
+- **Analysis:** Classic hot take: bold claim, no evidence, strong assertion. Model predicted `hype` because the post is celebrating a player in superlative terms which looks like hype on the surface. The line between `hot_take` and `hype` gets blurry when the hot take is positive instead of controversial since both involve enthusiasm. The model never picked up that one is making a claim and the other is just reacting to a moment.
 
-**Error #3**
+**Error 3**
 - **Text:** "[Krawczynski] Timberwolves have held discussions on Giannis, Kyrie, Trey Murphy III, Josh Giddey, Derrick White"
 - **True label:** `news`
 - **Predicted:** `hype` (confidence: 0.21)
-- **Analysis:** This has a journalist tag in brackets — a very strong signal for `news` — and lists specific names and a transaction context. The model still predicted `hype`. This suggests the model didn't learn the `[Reporter]` bracket pattern at all, which the Groq baseline handled easily. At 140 training examples spread across 5 labels, there weren't enough news examples for the model to reliably associate bracket-tagged posts with the `news` label.
+- **Analysis:** This one has a journalist tag in brackets which is basically a dead giveaway for `news`, plus it lists specific player names and a trade context. Model still predicted `hype`. It clearly never learned the `[Reporter]` bracket pattern at all, which the Groq baseline got right easily since it already knows what that format means. With only 140 training examples spread across 5 labels there just weren't enough news examples for the pattern to stick.
 
 ### Sample Classifications
 
@@ -153,33 +153,33 @@ The model almost exclusively predicts `hype` for everything except `question`. I
 | "Trae Young will never win a championship. His defense is just too bad." | `hype` | 0.22 | No (true: `hot_take`) |
 | "Steph Curry drops 52 on 9-15 from three in a blowout win" | `hype` | 0.79 | Yes |
 
-The `question` prediction is reasonable: the post is clearly soliciting community input with no stated position, and the model likely picked up on the interrogative structure. The `hype` predictions for `news` and `hot_take` illustrate the collapse problem — the model defaulted to its strongest learned class.
+The `question` prediction makes sense: the post is clearly asking for community input with no stated position and the model picked up on the interrogative structure. The wrong `hype` predictions on `news` and `hot_take` show the collapse problem where the model just defaulted to its strongest learned class.
 
 ### Reflection
 
-The fine-tuned model learned two things well: `question` (clear interrogative structure) and `hype` (as a catch-all for everything else). What it failed to learn was any of the more semantically subtle distinctions — `analysis` vs `hot_take`, `news` vs `hype`, or the journalist-tag signal for `news`.
+The model learned two things: `question` (interrogative structure is pretty obvious) and `hype` as basically a catch-all for everything else. It completely failed to learn the subtler distinctions like `analysis` vs `hot_take`, `news` vs `hype`, or the journalist tag pattern for `news`.
 
-The gap between what I intended and what the model captured is significant. I intended the model to learn argumentative structure: does this post reason with evidence, or assert without it? Instead, the model learned surface vocabulary and format cues, and when those cues were ambiguous, it defaulted to `hype` — the most common pattern in excited sports discourse.
+The gap between what I wanted the model to learn and what it actually learned is pretty big. I wanted it to pick up on argumentative structure: does this post reason with evidence or just assert something? Instead it learned surface level vocabulary cues and when those were ambiguous it just defaulted to `hype` since that was the dominant pattern in excited sports language.
 
-The likely reasons: 140 training examples is genuinely too small to learn 5 fine-grained distinctions, especially when 4 of the 5 labels involve opinion-heavy language that overlaps. The Groq baseline outperformed the fine-tuned model substantially (0.733 vs 0.467) because llama-3.3-70b already has world knowledge about what journalist tags mean, what a hot take looks like, and how question posts differ from assertions — things the fine-tuned DistilBERT had to learn from scratch with very little data.
+The main reason this happened is 140 training examples is honestly just too small to learn 5 fine-grained distinctions, especially when 4 of the 5 labels all involve opinionated language that overlaps a lot. The Groq baseline crushed the fine-tuned model (0.733 vs 0.467) because llama-3.3-70b already knows from pretraining what journalist tags mean, what a hot take looks like, and how questions differ from assertions. DistilBERT had to learn all of that from scratch with almost no data.
 
 ---
 
 ## Spec Reflection
 
-The spec helped most in the label design phase — the requirement to write decision rules for edge cases before annotating forced me to think carefully about the `analysis` vs `hot_take` boundary before labeling 200 examples. Without that, I would have applied those labels inconsistently across the dataset, which would have made the training signal even noisier.
+The spec was most helpful in the label design phase. Having to write decision rules for edge cases before annotating forced me to actually think through the `analysis` vs `hot_take` boundary before touching any data. Without that step I probably would have labeled similar posts differently throughout the dataset which would have made the training signal way noisier.
 
-Where the implementation diverged: the spec assumes fine-tuning will improve on the baseline, and the evaluation report template is structured around "fine-tuning improvement." My fine-tuned model regressed significantly. I kept the honest numbers rather than adjusting the setup to get better results, because the regression itself is informative — it reveals both the data size limitation and how much of the task's difficulty the Groq baseline handles through world knowledge rather than task-specific training.
+Where I diverged: the spec kind of assumes fine-tuning will improve on the baseline and the whole evaluation section is framed around "fine-tuning improvement." My model regressed by 0.267. I kept the honest numbers instead of tweaking things to get better results because the regression is actually informative. It shows both the data size limitation and how much of this task the Groq baseline handles through world knowledge that DistilBERT had to learn from zero.
 
 ---
 
 ## AI Usage
 
-1. **Data collection and labeling:** An LLM was used to pre-label the 200 posts after being given the label definitions from `planning.md`. Every pre-assigned label was reviewed manually and corrected where needed. Approximately 15-20% of pre-assigned labels were changed during review, primarily on `analysis` vs `hot_take` borderline cases.
+1. **Data collection and labeling:** Claude was used to pre-label the 200 posts after being given the label definitions from planning.md. Every label was reviewed manually and corrected where needed. Around 15-20% of pre-assigned labels got changed during review, mostly on `analysis` vs `hot_take` borderline cases.
 
-2. **README and planning.md drafting:** Claude was used to generate initial drafts of both documents given the label taxonomy, dataset stats, and notebook output. The error analysis sections, reflection, and hard case decisions were written and verified by hand using actual notebook output.
+2. **README and planning.md drafting:** Claude generated initial drafts of both documents using the label taxonomy, dataset stats, and notebook output. The error analysis, reflection, and hard case decisions were written and verified by hand using the actual notebook output.
 
-3. **Error pattern analysis:** After running the notebook, the wrong predictions were reviewed to identify the systematic `hype`-collapse pattern described in the error analysis. The pattern was confirmed by reading the confusion matrix directly.
+3. **Error pattern analysis:** The wrong predictions from the notebook were reviewed to find the `hype`-collapse pattern described above. The pattern was confirmed by reading the confusion matrix directly.
 
 ---
 
