@@ -3,6 +3,10 @@
 
 A fine-tuned text classifier that categorizes r/nba posts into 5 types: analysis, hot take, hype, news, or question.
 
+## Demo Video
+
+[Loom Demo](https://loom.com/share/your-link-here)
+
 ---
 
 ## Community
@@ -125,25 +129,25 @@ Results were collected by running the classify function on all 30 test examples 
 | Model | Accuracy |
 |-------|----------|
 | Zero-shot baseline (Groq llama-3.3-70b-versatile) | 0.733 |
-| Fine-tuned DistilBERT | 0.467 |
-| Difference | -0.267 (regression) |
+| Fine-tuned DistilBERT | 0.300 |
+| Difference | -0.433 (regression) |
 
-The fine-tuned model actually did worse than the zero-shot baseline. More on why in the reflection section.
+The fine-tuned model did significantly worse than the zero-shot baseline. More on why in the reflection section.
 
 ### Per-Class Metrics - Fine-Tuned Model
 
 ```
               precision    recall  f1-score   support
 
-    analysis       0.50      0.14      0.22         7
-    hot_take       0.00      0.00      0.00         6
-        hype       0.43      1.00      0.60         6
-        news       1.00      0.33      0.50         6
-    question       0.56      1.00      0.71         5
+    analysis       0.12      0.14      0.13         7
+    hot_take       0.20      0.17      0.18         6
+        hype       0.00      0.00      0.00         6
+        news       0.38      1.00      0.55         6
+    question       1.00      0.20      0.33         5
 
-   accuracy                           0.47        30
-  macro avg       0.50      0.49      0.41        30
-weighted avg       0.46      0.47      0.38        30
+   accuracy                           0.30        30
+  macro avg       0.34      0.30      0.24        30
+weighted avg       0.31      0.30      0.23        30
 ```
 
 ### Per-Class Metrics - Baseline (Groq)
@@ -168,53 +172,53 @@ weighted avg       0.81      0.73      0.73        30
 
 |  | pred: analysis | pred: hot_take | pred: hype | pred: news | pred: question |
 |---|---|---|---|---|---|
-| **true: analysis** | 1 | 0 | 5 | 0 | 1 |
-| **true: hot_take** | 0 | 0 | 5 | 0 | 1 |
-| **true: hype** | 0 | 0 | 6 | 0 | 0 |
-| **true: news** | 0 | 0 | 4 | 2 | 0 |
-| **true: question** | 0 | 0 | 0 | 0 | 5 |
+| **true: analysis** | 1 | 0 | 0 | 5 | 1 |
+| **true: hot_take** | 1 | 1 | 0 | 3 | 1 |
+| **true: hype** | 1 | 1 | 0 | 4 | 0 |
+| **true: news** | 0 | 0 | 0 | 6 | 0 |
+| **true: question** | 2 | 1 | 0 | 1 | 1 |
 
-The model basically just predicted `hype` for almost everything except `question`. It got `question` perfect (5/5) and partially learned `news` (2/6) but completely collapsed `analysis` and `hot_take` into `hype`.
+The model learned `news` really well (6/6 recall) but over-predicted it for everything else. `hype` got 0 correct predictions, F1 of 0.00. The model basically collapsed analysis, hype, hot_take, and question into news or analysis, never predicting hype at all.
 
 ### Error Analysis
 
 **Error 1**
 - **Text:** "After the KD Nets were eliminated in 2021, Jackie MacMullan claimed KD's goal was to win 3 championships with Brooklyn."
 - **True label:** `analysis`
-- **Predicted:** `hype` (confidence: 0.22)
-- **Analysis:** This post cites a specific journalist and a specific claim, so it reads like analysis because it's drawing a historical parallel with a source. The model predicted `hype` probably because it picked up on the dramatic framing ("KD Nets eliminated") instead of the argumentative structure. With only 30 training examples for analysis the model never learned to tell the difference between sourced reasoning and excited reaction posts.
+- **Predicted:** `news` (confidence: 0.21)
+- **Analysis:** The model saw the journalist name Jackie MacMullan and pattern matched it to news. But this post is using that quote as the basis for an argument about KD's legacy, which makes it analysis. The model couldn't tell the difference between citing a source as evidence vs reporting a fact. This is a labeling boundary problem: posts that reference journalists look like news on the surface even when the intent is analytical.
 
 **Error 2**
 - **Text:** "Wembanyama is already better than any big man the NBA has seen since prime Shaq"
 - **True label:** `hot_take`
-- **Predicted:** `hype` (confidence: 0.21)
-- **Analysis:** Classic hot take: bold claim, no evidence, strong assertion. Model predicted `hype` because the post is celebrating a player in superlative terms which looks like hype on the surface. The line between `hot_take` and `hype` gets blurry when the hot take is positive instead of controversial since both involve enthusiasm. The model never picked up that one is making a claim and the other is just reacting to a moment.
+- **Predicted:** `analysis` (confidence: 0.21)
+- **Analysis:** Bold claim, zero evidence, textbook hot take. The model predicted analysis probably because it saw a historical comparison to Shaq and thought that counted as reasoning. The model never learned that making a comparison and actually arguing with evidence are different things. Confidence is 0.21 showing it had no real certainty either way.
 
 **Error 3**
-- **Text:** "[Krawczynski] Timberwolves have held discussions on Giannis, Kyrie, Trey Murphy III, Josh Giddey, Derrick White"
-- **True label:** `news`
-- **Predicted:** `hype` (confidence: 0.21)
-- **Analysis:** This one has a journalist tag in brackets which is basically a dead giveaway for `news`, plus it lists specific player names and a trade context. Model still predicted `hype`. It clearly never learned the `[Reporter]` bracket pattern at all, which the Groq baseline got right easily since it already knows what that format means. With only 140 training examples spread across 5 labels there just weren't enough news examples for the pattern to stick.
+- **Text:** "LeBron James' Athleticism During His First Cleveland Stint"
+- **True label:** `hype`
+- **Predicted:** `analysis` (confidence: 0.21)
+- **Analysis:** This is a throwback hype post celebrating a highlight. The model predicted analysis probably because the title sounds like a documentary or breakdown. With hype getting F1 of 0.00 in this run the model completely failed to learn that label at all, likely because hype posts are the most visually and contextually dependent (they usually link to videos or images) and the title alone gives the least signal.
 
 ### Sample Classifications
 
 | Post | Predicted | Confidence | Correct? |
 |------|-----------|------------|----------|
-| "Who do you think will be the Ajay Mitchell in this year's upcoming draft?" | `question` | 0.81 | Yes |
-| "14 Years Ago Today - Chris Bosh Pours Champagne After Winning Championship" | `hype` | 0.74 | Yes |
-| "[Charania] BREAKING: Dusty May agreed to become new head coach of Dallas Mavericks" | `hype` | 0.21 | No (true: `news`) |
-| "Trae Young will never win a championship. His defense is just too bad." | `hype` | 0.22 | No (true: `hot_take`) |
-| "Steph Curry drops 52 on 9-15 from three in a blowout win" | `hype` | 0.79 | Yes |
+| "[Krawczynski] Timberwolves have held discussions on Giannis, Kyrie, Trey Murphy III..." | `news` | 0.22 | Yes |
+| "The Southeast Division Next Year - breakdown after Giannis trade" | `analysis` | 0.22 | Yes |
+| "Charles Oakley: 'I was supposed to be on the Roommate podcast...'" | `hot_take` | 0.22 | Yes |
+| "LeBron James' Athleticism During His First Cleveland Stint" | `analysis` | 0.21 | No (true: `hype`) |
+| "Wembanyama is already better than any big man the NBA has seen since prime Shaq" | `analysis` | 0.21 | No (true: `hot_take`) |
 
-The `question` prediction makes sense: the post is clearly asking for community input with no stated position and the model picked up on the interrogative structure. The wrong `hype` predictions on `news` and `hot_take` show the collapse problem where the model just defaulted to its strongest learned class.
+The Krawczynski prediction makes sense: journalist tag in brackets is a clear news signal and the model correctly identified it. The Southeast Division breakdown being predicted as analysis also makes sense since "breakdown" in the title is a strong analytical framing. The two wrong ones both got predicted as analysis when they shouldn't have, showing the model over-predicted that label for anything that looked remotely like structured content.
 
 ### Reflection
 
-The model learned two things: `question` (interrogative structure is pretty obvious) and `hype` as basically a catch-all for everything else. It completely failed to learn the subtler distinctions like `analysis` vs `hot_take`, `news` vs `hype`, or the journalist tag pattern for `news`.
+The model learned `news` reasonably well (perfect recall) but over-applied it to everything with a journalist-sounding name or quote. It learned `analysis` partially but confused it with hot_take and hype constantly. It never learned `hype` at all, F1 of 0.00, probably because hype posts depend on context like linked videos and throwback framing that doesn't come through in title text alone.
 
-The gap between what I wanted the model to learn and what it actually learned is pretty big. I wanted it to pick up on argumentative structure: does this post reason with evidence or just assert something? Instead it learned surface level vocabulary cues and when those were ambiguous it just defaulted to `hype` since that was the dominant pattern in excited sports language.
+The gap between what I intended and what the model captured is big. I wanted it to learn argumentative structure: does this post reason with evidence or just assert something? Instead it latched onto surface patterns like journalist names and quote formatting for news, and "sounds analytical" for everything else. When those cues were absent or ambiguous it basically guessed.
 
-The main reason this happened is 140 training examples is honestly just too small to learn 5 fine-grained distinctions, especially when 4 of the 5 labels all involve opinionated language that overlaps a lot. The Groq baseline crushed the fine-tuned model (0.733 vs 0.467) because llama-3.3-70b already knows from pretraining what journalist tags mean, what a hot take looks like, and how questions differ from assertions. DistilBERT had to learn all of that from scratch with almost no data.
+The core problem is 140 training examples across 5 labels is just not enough. The Groq baseline got 0.733 vs the fine-tuned model's 0.300 because llama-3.3-70b already has world knowledge about what journalist tags mean, what a hot take sounds like, and how hype posts work. DistilBERT had to figure all of that out from 28 news examples and 30 analysis examples. It didn't have nearly enough signal.
 
 ---
 
@@ -222,7 +226,7 @@ The main reason this happened is 140 training examples is honestly just too smal
 
 The spec was most helpful in the label design phase. Having to write decision rules for edge cases before annotating forced me to actually think through the `analysis` vs `hot_take` boundary before touching any data. Without that step I probably would have labeled similar posts differently throughout the dataset which would have made the training signal way noisier.
 
-Where I diverged: the spec kind of assumes fine-tuning will improve on the baseline and the whole evaluation section is framed around "fine-tuning improvement." My model regressed by 0.267. I kept the honest numbers instead of tweaking things to get better results because the regression is actually informative. It shows both the data size limitation and how much of this task the Groq baseline handles through world knowledge that DistilBERT had to learn from zero.
+Where I diverged: the spec kind of assumes fine-tuning will improve on the baseline and the whole evaluation section is framed around "fine-tuning improvement." My model regressed by 0.433. I kept the honest numbers instead of tweaking things to get better results because the regression is actually informative. It shows both the data size limitation and how much of this task the Groq baseline handles through world knowledge that DistilBERT had to learn from zero.
 
 ---
 
